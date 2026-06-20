@@ -1,148 +1,151 @@
-# EasyIR
+# EasyIR — Minimal IR library
 
-EasyIR is a small, easy-to-use infrared (IR) library for Arduino, ESP8266 and ESP32. It focuses on simplicity and accuracy for common IR tasks while being easier to use than larger libraries like `IRremote`.
+EasyIR is a minimal, accurate, and easy-to-use infrared (IR) library for microcontrollers (Arduino/AVR, ESP8266, ESP32). It aims to be simpler than larger libraries (e.g. `IRremote`) while providing reliable NEC decoding and a simple NEC transmitter.
 
-Features
-- Read raw IR pulses into a microsecond-duration array (`readRaw`).
-- Decode NEC protocol signals to a 32-bit code (`decodeNEC`).
-- Send NEC signals using software-generated ~38 kHz carrier (`sendNEC`).
+Goals and design
+----------------
+- Minimal API surface for quick integration.
+- Small code size and low RAM usage for constrained MCUs.
+- Clear wiring and usage patterns for beginners.
+- Provide a solid NEC decoder and a simple transmitter; keep extension points for hardware PWM and extra protocols.
 
-Installation (Arduino IDE)
-1. Copy the `EasyIR` folder into your `Documents/Arduino/libraries/` directory, or compile with `arduino-cli` using `--libraries /path/to/EasyIR`.
-2. Restart Arduino IDE and open one of the examples: `SimpleReceiver` or `SimpleSender`.
-
-Quick usage
-- `EasyIR ir; ir.begin(rxPin);` — initialize receiver on `rxPin`.
-- `int n = ir.readRaw(buf, 100);` — read raw pulse durations (microseconds) into `buf`.
-- `if (ir.decodeNEC(buf, n, code))` — decode NEC into 32-bit `code`.
-- `ir.beginTx(txPin); ir.sendNEC(code, txPin);` — initialize transmitter and send NEC code.
-
-Notes and limitations
-- This library is intentionally simple and uses software timing for the carrier when sending. For more robust timing or additional protocols, consider using hardware PWM or a dedicated library.
-- The `readRaw` implementation uses `pulseIn` and simple blocking reads; it is suitable for basic use but not for high-performance or multitasking scenarios.
-
-Examples
-- `examples/SimpleReceiver` — captures raw pulses and attempts NEC decode.
-- `examples/SimpleSender` — sends a test NEC code periodically.
-
-Contributing and enhancements
-- If you want hardware PWM support (AVR timers or ESP PWM) or additional protocol decoders (RC5, Sony), open an issue or pull request.
-
-License
-- See the repository `LICENSE` file for license details.
-
-Detailed documentation
-
-Overview
+Contents
 --------
-EasyIR provides a minimal API to capture raw IR pulse timings, decode NEC protocol frames, and transmit NEC frames. The goal is to be simple to understand and use on small microcontrollers while providing reliable NEC decoding and sending for common remote-control tasks.
+- `src/EasyIR.h`, `src/EasyIR.cpp` — library implementation
+- `examples/SimpleReceiver` — capture raw pulses and decode NEC
+- `examples/SimpleSender` — send a NEC frame periodically
+- `library.properties`, `keywords.txt`, `README.md`
 
-Supported platforms
--------------------
-- AVR (Arduino Uno, Nano, etc.)
-- ESP8266 (NodeMCU, Wemos)
-- ESP32
+Quickstart
+----------
+1. Copy the `EasyIR` folder into `Documents/Arduino/libraries/` or build with `arduino-cli` using `--libraries /path/to/EasyIR`.
+2. Open `examples/SimpleReceiver` in Arduino IDE or compile with `arduino-cli`:
 
-Requirements
-------------
-- Arduino core for your board (installable via Arduino IDE or `arduino-cli`).
-
-Installation
-------------
-Arduino IDE
-1. Copy the `EasyIR` folder into `Documents/Arduino/libraries/`.
-2. Restart Arduino IDE.
-3. Open `File > Examples > EasyIR > SimpleReceiver` or open `examples/SimpleReceiver/SimpleReceiver.ino`.
-
-Arduino Library Manager
-- If the library is published to the Arduino Library Manager, you can install it from the IDE: `Sketch > Include Library > Manage Libraries...` then search for "EasyIR" and click `Install`.
-- With `arduino-cli` you can also install from the Library Manager with:
-```bash
-arduino-cli lib install EasyIR
-```
-arduino-cli
-1. Install `arduino-cli` (Homebrew: `brew install arduino-cli`).
-2. Install cores you need, e.g. `arduino-cli core install arduino:avr`.
-3. Compile examples with the `--libraries` flag pointing to the `EasyIR` path:
 ```bash
 arduino-cli compile --fqbn arduino:avr:uno /path/to/EasyIR/examples/SimpleReceiver --libraries /path/to/EasyIR
 ```
 
-PlatformIO
-1. Optionally add this library path in `platformio.ini` as `lib_extra_dirs = /path/to/EasyIR` or copy the folder into the `lib/` directory of your project.
+Wiring (recommended)
+---------------------
+Receiver (e.g. TSOP38238):
 
-Wiring / Hardware
-------------------
-Receiver (typical TSOPxxxx)
-- VCC -> 5V (or 3.3V for 3.3V modules)
-- GND -> GND
-- OUT -> digital input pin (e.g. `2`)
+		+5V  -----+         +--------------+
+						 |         | TSOPxxxx     |
+						[ ]  VCC   |  VCC   OUT  GND
+						 |  module  |   |     |    |
+		GND  ---+--------- GND |     |    +---- GND
+													 +-----+     
 
-Transmitter (IR LED + transistor recommended)
-- IR LED anode -> resistor (100-330Ω) -> +5V
-- IR LED cathode -> collector of NPN transistor (e.g. 2N2222)
-- Emitter -> GND
-- Arduino TX pin -> base resistor (1kΩ) -> base of transistor
-- Add a diode and current-limiting resistor as appropriate. Do not drive IR LED directly from a GPIO without a transistor.
+Connect `OUT` to the Arduino digital input pin you choose (e.g. `2`). Use 3.3V Vcc for ESP boards when necessary.
 
-API Reference
--------------
-Class: `EasyIR`
+Transmitter (IR LED with NPN transistor):
+
+		+5V ---[resistor]---|>---+    (IR LED anode)
+													|
+											 IR LED
+													|
+										(IR LED cathode)
+													+---- collector (NPN)
+															emitter -> GND
+															base <- Arduino pin via 1k resistor
+
+Do not drive the IR LED directly from the MCU pin. Use a transistor driver and a suitable resistor.
+
+API (detailed)
+--------------
+Header: `src/EasyIR.h`
 
 - `EasyIR()`
-	- Constructor.
-- `void begin(uint8_t rxPin)`
-	- Initialize receiver on pin `rxPin`. Sets pin mode to `INPUT`.
-- `int readRaw(unsigned long *buffer, int maxLen, unsigned long timeout = 100000UL)`
-	- Reads alternating HIGH/LOW pulse durations (microseconds) into `buffer` using `pulseIn`.
-	- Returns number of entries written (each entry is a duration). `maxLen` must match buffer size.
-	- `timeout` is the maximum wait time for pulses (microseconds).
-- `bool decodeNEC(const unsigned long *buffer, int len, uint32_t &result)`
-	- Attempts to decode NEC from the raw durations in `buffer` of length `len`.
-	- On success returns `true` and writes the 32-bit NEC code into `result`.
-- `void beginTx(uint8_t txPin)`
-	- Initialize transmitter pin as `OUTPUT`.
-- `void sendNEC(uint32_t data, uint8_t txPin)`
-	- Send 32-bit `data` as a NEC frame via `txPin` using software carrier generation (~38 kHz).
+	- Construct library object.
 
-Example usage (receiver)
+- `void begin(uint8_t rxPin)`
+	- Configure `rxPin` as input and prepare receiver usage.
+
+- `int readRaw(unsigned long *buffer, int maxLen, unsigned long timeout = 100000UL)`
+	- Blocking capture of alternating mark/space durations (microseconds) into `buffer`.
+	- Returns number of duration entries written (even count: mark,space,mark,space...).
+	- `maxLen` is the maximum entries to store; choose buffer size accordingly (example uses 100).
+
+- `bool decodeNEC(const unsigned long *buffer, int len, uint32_t &result)`
+	- Attempt to decode NEC protocol from `buffer` of length `len`.
+	- On success returns true and writes the 32-bit value into `result`.
+
+- `void beginTx(uint8_t txPin)`
+	- Configure transmitter pin as output. Use a transistor driver as shown above.
+
+- `void sendNEC(uint32_t data, uint8_t txPin)`
+	- Transmit `data` as a NEC frame using software carrier (~38 kHz). Simple and portable, but less precise than hardware PWM.
+
+NEC protocol basics implemented
+------------------------------
+- Leader: mark ~= 9000 µs, space ~= 4500 µs
+- Bit: mark ~= 560 µs, space ~= 560 µs (logical 0) or ~= 1690 µs (logical 1)
+- 32 data bits transmitted MSB-first in our implementation
+
+Timing table (typical values)
+-----------------------------
+- Leader mark: 9000 µs
+- Leader space: 4500 µs
+- Bit mark: 560 µs
+- Bit space (0): 560 µs
+- Bit space (1): 1690 µs
+
+Examples
+--------
+Receiver (prints raw and attempts decode)
 ```cpp
 #include <EasyIR.h>
 EasyIR ir;
-unsigned long buf[100];
+unsigned long buf[120];
 
 void setup(){
 	Serial.begin(115200);
-	ir.begin(2); // attach receiver to pin 2
+	ir.begin(2); // attach TSOP OUT to digital pin 2
 }
 
 void loop(){
-	int n = ir.readRaw(buf, 100);
+	int n = ir.readRaw(buf, 120, 200000UL);
 	if(n>0){
+		Serial.print("Captured entries: "); Serial.println(n);
+		for(int i=0;i<n;i++){
+			Serial.print(buf[i]); Serial.print(i+1<n?",":"\n");
+		}
 		uint32_t code;
 		if(ir.decodeNEC(buf, n, code)){
 			Serial.print("NEC: 0x"); Serial.println(code, HEX);
+		} else {
+			Serial.println("NEC decode failed");
 		}
 	}
+	delay(200);
 }
 ```
 
-Example usage (sender)
+Sender
 ```cpp
 #include <EasyIR.h>
 EasyIR ir;
-void setup(){ ir.beginTx(3); }
-void loop(){ ir.sendNEC(0x20DF10EFUL, 3); delay(1000); }
+const uint8_t txPin = 3;
+
+void setup(){
+	ir.beginTx(txPin);
+}
+
+void loop(){
+	// Example NEC code (Samsung/Pronto/etc.)
+	ir.sendNEC(0x20DF10EFUL, txPin);
+	delay(2000);
+}
 ```
 
-Build examples with arduino-cli
------------------------------
+Building and testing
+--------------------
+arduino-cli example:
 ```bash
 arduino-cli compile --fqbn arduino:avr:uno /path/to/EasyIR/examples/SimpleReceiver --libraries /path/to/EasyIR
-arduino-cli compile --fqbn arduino:avr:uno /path/to/EasyIR/examples/SimpleSender --libraries /path/to/EasyIR
 ```
 
-PlatformIO example snippet (`platformio.ini`)
+PlatformIO example (`platformio.ini`):
 ```ini
 [env:uno]
 platform = atmelavr
@@ -151,22 +154,30 @@ framework = arduino
 lib_extra_dirs = /path/to/EasyIR
 ```
 
-Timing and tolerances
----------------------
-- The decoder uses approximate matching for NEC timings (leader ~9000/4500 µs, bit mark ~560 µs, space ~560/1690 µs). Tolerance values are conservative but may need adjustment for noisy receivers or different remotes.
-- `readRaw` uses `pulseIn` which is blocking and has limits on minimum detectable pulse width; it's fine for simple use but not for timing-critical multi-tasking applications.
+Debugging tips
+--------------
+- If you get `EasyIR.h: No such file or directory`, either move the `EasyIR` folder into `Documents/Arduino/libraries/` or pass `--libraries /path/to/EasyIR` to `arduino-cli`.
+- Use `SimpleReceiver` to print raw timings. Compare to the timing table above to tune `approx()` tolerances in `src/EasyIR.cpp`.
+- If `decodeNEC` fails for a known remote, inspect the raw output. Some remotes use slight variations or different protocols.
+- For unstable transmission use a transistor driver and verify the IR LED current and orientation.
 
-Troubleshooting
----------------
-- `EasyIR.h` not found when compiling: either copy the library to `Documents/Arduino/libraries/` or use `--libraries /path/to/EasyIR` when compiling with `arduino-cli`.
-- Decoder fails on some remotes: try increasing tolerance in `approx` or inspect raw timings printed from `SimpleReceiver`.
-- Transmission unstable: use transistor driver or implement hardware PWM for carrier generation.
+Port-specific notes
+-------------------
+- AVR: `delayMicroseconds` and `digitalWrite` are used for software carrier. Timing is reasonable for NEC but not bit-perfect under heavy interrupts.
+- ESP8266/ESP32: software timing may be less accurate due to WiFi/RTOS; consider using hardware PWM or dedicated libraries on these platforms for reliable transmission.
+
+Next improvements (ideas)
+------------------------
+- Hardware PWM transmitter mode (AVR timer, ESP LEDC) selectable via API.
+- Additional decoders (RC5, Sony) and repeat-code handling.
+- Unit tests and CI with `arduino-cli` or PlatformIO.
 
 Contributing
 ------------
-- Feel free to open issues or PRs for additional protocol decoders (RC5, Sony), hardware PWM support, or performance improvements.
+- PRs welcome. Please follow small, focused commits and include tests or example sketches when adding functionality.
 
 License
 -------
-See the `LICENSE` file in the repository.
+See the `LICENSE` file included in this repository.
+
 
