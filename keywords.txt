@@ -1,0 +1,6 @@
+EasyIR	Keyword
+begin	Function
+beginTx	Function
+readRaw	Function
+decodeNEC	Function
+sendNEC	Function
