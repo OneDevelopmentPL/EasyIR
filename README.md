@@ -1,4 +1,4 @@
-# EasyIR — Minimal IR library
+# EasyIR - Minimal IR library
 
 EasyIR is a minimal, accurate, and easy-to-use infrared (IR) library for microcontrollers (Arduino/AVR, ESP8266, ESP32). It aims to be simpler than larger libraries (e.g. `IRremote`) while providing reliable NEC decoding and a simple NEC transmitter.
 
