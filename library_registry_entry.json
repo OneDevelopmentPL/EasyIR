@@ -1,0 +1,15 @@
+{
+  "name": "EasyIR",
+  "version": "1.0.1",
+  "author": "OneDevelopmentPL",
+  "maintainer": "OneDevelopment <iwowolanin@gmail.com>",
+  "sentence": "Simple IR library for popular microcontrollers.",
+  "paragraph": "EasyIR is a small, easy-to-use library for sending and receiving IR signals on Arduino, ESP8266 and ESP32. It includes NEC decoding and a simple NEC transmitter.",
+  "url": "https://github.com/OneDevelopmentPL/EasyIR",
+  "platforms": ["avr", "esp8266", "esp32"],
+  "category": "Signal Input/Output",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OneDevelopmentPL/EasyIR"
+  }
+}
