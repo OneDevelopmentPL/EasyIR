@@ -178,6 +178,7 @@ Contributing
 
 License
 -------
+This project has OpenLibraries-Arduino 1.1 License.
 See the `LICENSE` file included in this repository.
 
 
